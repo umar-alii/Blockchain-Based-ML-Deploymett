@@ -34,6 +34,7 @@ public class User {
 
     public String getImageUrl() {
         return imageUrl;
+
     }
 
     public void setImageUrl(String imageUrl) {
@@ -46,6 +47,7 @@ public class User {
 
     public void setId(String id) {
         this.id = id;
+
     }
 
     public String getName() {

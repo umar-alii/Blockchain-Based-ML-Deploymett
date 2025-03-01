@@ -147,5 +147,6 @@ public class ModelInfo {
 
     public void setIsPublic(Boolean aPublic) {
         isPublic = aPublic;
+
     }
 }
