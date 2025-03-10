@@ -1,0 +1,20 @@
+server:
+  port: 8080
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/ML_Deployment_Database
+
+
+app:
+  auth:
+    tokenSecret: 1mzFhganWdRsTgoa3+5JIp+pZfu1TO77VJDWqleOwMWQJkb0lqdM7hLmyuxV4Cy5ooBmhqKnUAHdcJetmKwNMQ==
+    tokenExpirationMsec: 864000000
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    ML.Deployment.ML.Deployment: DEBUG
