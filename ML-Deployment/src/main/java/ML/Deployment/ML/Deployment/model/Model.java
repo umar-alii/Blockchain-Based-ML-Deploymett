@@ -16,12 +16,12 @@ public class Model {
     private String name;
     private String description;
     private String filename;
-    private String storagePath; // e.g., S3 key or file system path
+    private String storagePath;
     private String contentType;
     private long size;
     private Instant uploadTimestamp;
-    private boolean isPublic = true; // Default to public
-    private String ownerId; // Link to the User who uploaded it
+    private boolean isPublic = true;
+    private String ownerId;
 
 
     public Model() {
@@ -120,5 +120,5 @@ public class Model {
     public void setOwnerId(String ownerId) {
         this.ownerId = ownerId;
     }
-    // Lombok @Data generates constructor, getters, setters, etc.
+
 }
