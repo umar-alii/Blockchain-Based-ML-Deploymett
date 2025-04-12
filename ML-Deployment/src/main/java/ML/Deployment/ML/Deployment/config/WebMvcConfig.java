@@ -13,7 +13,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         long MAX_AGE_SECS = 3600;
         registry.addMapping("/**")
 
-                .allowedOrigins("http://localhost:3000") // Example for React dev server
+                .allowedOrigins("http://localhost:4200") // Example for React dev server
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)
