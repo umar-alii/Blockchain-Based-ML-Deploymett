@@ -1,6 +1,6 @@
 package ML.Deployment.ML.Deployment.controller;
 
-import ML.Deployment.ML.Deployment.exception.DeploymentException;
+
 import ML.Deployment.ML.Deployment.exception.FileUploadException;
 import ML.Deployment.ML.Deployment.model.Model;
 import ML.Deployment.ML.Deployment.payload.ApiResponse;
@@ -8,6 +8,7 @@ import ML.Deployment.ML.Deployment.payload.ModelDto;
 import ML.Deployment.ML.Deployment.security.CurrentUser;
 import ML.Deployment.ML.Deployment.security.UserPrincipal; // Assuming you have this
 import ML.Deployment.ML.Deployment.service.ModelService;
+import jakarta.websocket.DeploymentException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,7 +59,7 @@ public class ModelController {
                         name, savedModel.getId(), savedModel.getSpaceId());
             return ResponseEntity.status(HttpStatus.CREATED).body(responseDto); // Return 201 Created
 
-        } catch (FileUploadException | DeploymentException | IllegalArgumentException e) {
+        } catch (FileUploadException | IllegalArgumentException e) {
             logger.warn("Failed to upload/deploy model '{}' via Git: {}", name, e.getMessage());
             // Return 4xx for client-side errors (bad input, invalid format)
             HttpStatus status = (e instanceof IllegalArgumentException || e instanceof FileUploadException) ?

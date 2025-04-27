@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login & Signup</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 400px;
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .container h2 {
+            margin-top: 0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"],
+        input[type="email"],
+        input[type="password"] {
+            width: calc(100% - 22px); /* Adjust for padding/border */
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        pre { /* Style for displaying JSON token */
+            background-color: #eee;
+            padding: 10px;
+            border-radius: 3px;
+            word-wrap: break-word; /* Wrap long tokens */
+        }
+    </style>
+</head>
+<body>
+
+<h1>Test Login & Signup</h1>
+
+<!-- Login Form -->
+<div class="container">
+    <h2>Login</h2>
+    <form id="loginForm">
+        <div>
+            <label for="loginEmail">Email:</label>
+            <input type="email" id="loginEmail" required>
+        </div>
+        <div>
+            <label for="loginPassword">Password:</label>
+            <input type="password" id="loginPassword" required>
+        </div>
+        <button type="submit">Login</button>
+    </form>
+    <div id="loginMessage" class="message" style="display: none;"></div>
+</div>
+
+<!-- Signup Form -->
+<div class="container">
+    <h2>Signup</h2>
+    <form id="signupForm">
+        <div>
+            <label for="signupName">Name:</label>
+            <input type="text" id="signupName" required>
+        </div>
+        <div>
+            <label for="signupEmail">Email:</label>
+            <input type="email" id="signupEmail" required>
+        </div>
+        <div>
+            <label for="signupPassword">Password:</label>
+            <input type="password" id="signupPassword" required>
+        </div>
+        <button type="submit">Signup</button>
+    </form>
+    <div id="signupMessage" class="message" style="display: none;"></div>
+</div>
+
+<script>
+    const loginForm = document.getElementById('loginForm');
+    const loginMessageDiv = document.getElementById('loginMessage');
+    const signupForm = document.getElementById('signupForm');
+    const signupMessageDiv = document.getElementById('signupMessage');
+
+    // --- Login Handler ---
+    loginForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        showMessage(loginMessageDiv, 'Processing login...', 'info');
+
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+
+        try {
+            const response = await fetch('/auth/login', { // Relative URL works when served from static
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ email, password })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showMessage(loginMessageDiv, 'Login Successful! Token received:', 'success');
+                // Display the token in a readable way
+                const tokenPre = document.createElement('pre');
+                tokenPre.textContent = JSON.stringify(result, null, 2); // Pretty print JSON
+                loginMessageDiv.appendChild(tokenPre);
+
+            } else {
+                // Display error from response body (assuming problem+json or similar structure)
+                const errorDetail = result.detail || result.message || JSON.stringify(result);
+                showMessage(loginMessageDiv, `Login Failed (${response.status}): ${errorDetail}`, 'error');
+            }
+        } catch (error) {
+            console.error('Login Fetch Error:', error);
+            showMessage(loginMessageDiv, 'Login request failed. Check console or network tab.', 'error');
+        }
+    });
+
+    // --- Signup Handler ---
+    signupForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        showMessage(signupMessageDiv, 'Processing signup...', 'info');
+
+        const name = document.getElementById('signupName').value;
+        const email = document.getElementById('signupEmail').value;
+        const password = document.getElementById('signupPassword').value;
+
+        try {
+            const response = await fetch('/auth/signup', { // Relative URL
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ name, email, password })
+            });
+
+            const result = await response.json();
+
+            // Signup expects 201 Created on success usually
+            if (response.status === 201) {
+                showMessage(signupMessageDiv, `Signup Successful: ${result.message}`, 'success');
+                signupForm.reset(); // Clear the form on success
+            } else {
+                // Display error from response body
+                const errorDetail = result.detail || result.message || JSON.stringify(result);
+                showMessage(signupMessageDiv, `Signup Failed (${response.status}): ${errorDetail}`, 'error');
+            }
+        } catch (error) {
+            console.error('Signup Fetch Error:', error);
+            showMessage(signupMessageDiv, 'Signup request failed. Check console or network tab.', 'error');
+        }
+    });
+
+    // --- Helper function to display messages ---
+    function showMessage(element, text, type) {
+        element.textContent = text;
+        element.className = 'message'; // Reset classes
+        if (type === 'success') {
+            element.classList.add('success');
+        } else if (type === 'error') {
+            element.classList.add('error');
+        }
+        // For 'info' or other types, it just keeps the base 'message' class
+        element.style.display = 'block'; // Make it visible
+    }
+
+</script>
+
+</body>
+</html>

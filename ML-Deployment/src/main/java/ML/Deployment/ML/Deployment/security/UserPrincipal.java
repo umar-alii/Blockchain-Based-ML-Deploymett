@@ -1,7 +1,7 @@
 package ML.Deployment.ML.Deployment.security;
 
 import ML.Deployment.ML.Deployment.model.User;
-import com.fasterxml.jackson.annotation.JsonIgnore; // Import if using Jackson elsewhere with UserPrincipal
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -13,10 +13,10 @@ import java.util.stream.Collectors;
 
 public class UserPrincipal implements UserDetails {
     private String id;
-    private String name; // Keep name if useful
+    private String name;
     private String email;
 
-    @JsonIgnore // Prevent password from being accidentally serialized
+    @JsonIgnore
     private String password;
 
     private Collection<? extends GrantedAuthority> authorities;
@@ -36,14 +36,14 @@ public class UserPrincipal implements UserDetails {
                 user.getName(),
                 user.getEmail(),
                 user.getPassword(),
-                authorities // Use the authorities passed in
+                authorities
         );
     }
 
     // Alternative factory method if needed (maps roles internally)
     public static UserPrincipal create(User user) {
         List<GrantedAuthority> authorities = user.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority(role.getName())) // Assuming Role has getName() method
+                .map(role -> new SimpleGrantedAuthority(role.getName()))
                 .collect(Collectors.toList());
 
         return new UserPrincipal(
@@ -55,7 +55,6 @@ public class UserPrincipal implements UserDetails {
         );
     }
 
-
     public String getId() {
         return id;
     }
@@ -64,9 +63,13 @@ public class UserPrincipal implements UserDetails {
         return name;
     }
 
+    public String getEmail() {
+        return email;
+    }
+
     @Override
     public String getUsername() {
-        return email; // Use email as the username for Spring Security
+        return email;
     }
 
     @Override
@@ -81,22 +84,22 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return true; // Add logic if needed
+        return true;
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return true; // Add logic if needed
+        return true;
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return true; // Add logic if needed
+        return true;
     }
 
     @Override
     public boolean isEnabled() {
-        return true; // Add logic if needed (e.g., email verification)
+        return true;
     }
 
     @Override

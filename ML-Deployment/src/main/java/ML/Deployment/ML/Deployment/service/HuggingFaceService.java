@@ -1,6 +1,7 @@
 package ML.Deployment.ML.Deployment.service;
 
-import ML.Deployment.ML.Deployment.exception.DeploymentException;
+
+import ML.Deployment.ML.Deployment.exception.BadRequestException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -96,7 +97,7 @@ public class HuggingFaceService {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            throw new DeploymentException("Deployment failed using Git: " + e.getMessage(), e);
+            throw new BadRequestException("Deployment failed using Git: " + e.getMessage(), e);
         } finally {
             // 6. Clean up temporary directory
             if (tempDir != null && Files.exists(tempDir)) {
@@ -104,14 +105,14 @@ public class HuggingFaceService {
                 try {
                     // Use Java NIO for potentially more robust deletion
                     Files.walk(tempDir)
-                         .sorted(Comparator.reverseOrder())
-                         .map(Path::toFile)
-                         // .peek(f -> logger.debug("Deleting: " + f.getPath())) // Uncomment for debug
-                         .forEach(File::delete);
+                            .sorted(Comparator.reverseOrder())
+                            .map(Path::toFile)
+                            // .peek(f -> logger.debug("Deleting: " + f.getPath())) // Uncomment for debug
+                            .forEach(File::delete);
                     if (!Files.exists(tempDir)) {
-                         logger.info("Successfully cleaned up temporary directory: {}", tempDir);
+                        logger.info("Successfully cleaned up temporary directory: {}", tempDir);
                     } else {
-                         logger.warn("Temporary directory might not be fully cleaned up: {}", tempDir);
+                        logger.warn("Temporary directory might not be fully cleaned up: {}", tempDir);
                     }
                 } catch (IOException e) {
                     logger.error("Failed to clean up temporary directory: {}", tempDir, e);
@@ -120,7 +121,7 @@ public class HuggingFaceService {
         }
     }
 
-    private void executeGitCommand(Path workingDir, String... command) throws IOException, InterruptedException, DeploymentException {
+    private void executeGitCommand(Path workingDir, String... command) throws IOException, InterruptedException, org.apache.coyote.BadRequestException {
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.directory(workingDir.toFile());
         pb.redirectErrorStream(true);
@@ -141,38 +142,38 @@ public class HuggingFaceService {
         boolean finished = process.waitFor(3, TimeUnit.MINUTES); // 3-minute timeout
         int exitCode = -1; // Default value
         if (finished) {
-             exitCode = process.exitValue();
+            exitCode = process.exitValue();
         } else {
-             process.destroyForcibly(); // Kill if it times out
-             logger.error("Command timed out after 3 minutes: {}", String.join(" ", command));
-             throw new DeploymentException("Command timed out: " + String.join(" ", command));
+            process.destroyForcibly(); // Kill if it times out
+            logger.error("Command timed out after 3 minutes: {}", String.join(" ", command));
+            throw new org.apache.coyote.BadRequestException("Command timed out: " + String.join(" ", command));
         }
 
 
         logger.debug("Command finished. Exit Code: {}. Output:\n---\n{}---", exitCode, output);
 
         if (exitCode != 0) {
-            throw new DeploymentException("Command failed with exit code " + exitCode + ": " + String.join(" ", command) + "\nOutput:\n" + output);
+            throw new org.apache.coyote.BadRequestException("Command failed with exit code " + exitCode + ": " + String.join(" ", command) + "\nOutput:\n" + output);
         }
-         // Check for specific git error messages in output if needed
-         if (output.toString().toLowerCase().contains("error:") || output.toString().toLowerCase().contains("fatal:")) {
-              logger.warn("Potential error detected in git command output even with exit code 0 for command: {}", String.join(" ", command));
-              // Decide if this should be a hard failure
-              // throw new DeploymentException("Git command reported errors despite exit code 0: " + String.join(" ", command) + "\nOutput:\n" + output);
-         }
+        // Check for specific git error messages in output if needed
+        if (output.toString().toLowerCase().contains("error:") || output.toString().toLowerCase().contains("fatal:")) {
+            logger.warn("Potential error detected in git command output even with exit code 0 for command: {}", String.join(" ", command));
+            // Decide if this should be a hard failure
+            // throw new DeploymentException("Git command reported errors despite exit code 0: " + String.join(" ", command) + "\nOutput:\n" + output);
+        }
     }
 
     private String generateSpaceName(String ownerUsername, String modelName) {
         String safeModelName = modelName.toLowerCase()
-                                        .replaceAll("[^a-z0-9\\-]+", "") // Allow letters, numbers, hyphen
-                                        .replaceAll("\\s+", "-") // Replace spaces with hyphens
-                                        .replaceAll("-{2,}", "-") // Collapse multiple hyphens
-                                        .replaceAll("^-|-$", ""); // Trim leading/trailing hyphens
+                .replaceAll("[^a-z0-9\\-]+", "") // Allow letters, numbers, hyphen
+                .replaceAll("\\s+", "-") // Replace spaces with hyphens
+                .replaceAll("-{2,}", "-") // Collapse multiple hyphens
+                .replaceAll("^-|-$", ""); // Trim leading/trailing hyphens
         if (safeModelName.length() > 40) { // Keep length reasonable
-             safeModelName = safeModelName.substring(0, 40);
+            safeModelName = safeModelName.substring(0, 40);
         }
         if (safeModelName.isEmpty()) {
-             safeModelName = "model";
+            safeModelName = "model";
         }
         // Using a shorter UUID part
         return "ml-" + safeModelName + "-" + UUID.randomUUID().toString().substring(0, 6);
@@ -235,65 +236,63 @@ public class HuggingFaceService {
 
 
     private String generateMainPyContent(String predictionParametersJson, String modelPathInContainer) throws JsonProcessingException {
-         List<String> fieldNames;
-         String pydanticFields = "";
-         String featureArrayAssignment = "";
-         String inputDataLogging = ""; // For logging input fields
+        List<String> fieldNames;
+        String pydanticFields = "";
+        String featureArrayAssignment = "";
+        String inputDataLogging = ""; // For logging input fields
 
-         try {
-             // Try parsing as Map first (allows specifying types or aliases if needed later)
-             Map<String, Object> paramMap = objectMapper.readValue(predictionParametersJson, new TypeReference<Map<String, Object>>() {});
-             fieldNames = paramMap.keySet().stream().collect(Collectors.toList());
+        try {
+            // Try parsing as Map first (allows specifying types or aliases if needed later)
+            Map<String, Object> paramMap = objectMapper.readValue(predictionParametersJson, new TypeReference<Map<String, Object>>() {});
+            fieldNames = paramMap.keySet().stream().collect(Collectors.toList());
 
-             StringBuilder pydanticBuilder = new StringBuilder();
-             StringBuilder featureBuilder = new StringBuilder("np.array([[\n");
-             StringBuilder logBuilder = new StringBuilder("{\n");
+            StringBuilder pydanticBuilder = new StringBuilder();
+            StringBuilder featureBuilder = new StringBuilder("np.array([[\n");
+            StringBuilder logBuilder = new StringBuilder("{\n");
 
-             for (String field : fieldNames) {
-                 // Basic type mapping - default to float for simplicity
-                 String pydanticType = "float";
-                 // Simple alias generation for camelCase etc.
-                 String alias = field.contains("_") ? field.replaceAll("_([a-z])", "$1".toUpperCase()) : field;
-                 // Ensure field name is valid Python identifier
-                 String validPythonField = field.replaceAll("[^a-zA-Z0-9_]", "_");
+            for (String field : fieldNames) {
+                // Basic type mapping - default to float for simplicity
+                String pydanticType = "float";
+                // Simple alias generation for camelCase etc.
+                String alias = field.contains("_") ? field.replaceAll("_([a-z])", "$1".toUpperCase()) : field;
+                // Ensure field name is valid Python identifier
+                String validPythonField = field.replaceAll("[^a-zA-Z0-9_]", "_");
 
-                 pydanticBuilder.append(String.format("    %s: %s = Field(..., alias=\"%s\")\n", validPythonField, pydanticType, alias));
-                 featureBuilder.append(String.format("            input_data.%s,\n", validPythonField));
-                 logBuilder.append(String.format("        f'    \"%s\": {{input_data.%s}},\\n'\n", alias, validPythonField));
-             }
-             pydanticFields = pydanticBuilder.toString();
-             featureArrayAssignment = featureBuilder.append("        ]])").toString();
-             inputDataLogging = logBuilder.append("        '    }'\n    )").toString();
+                pydanticBuilder.append(String.format("    %s: %s = Field(..., alias=\"%s\")\n", validPythonField, pydanticType, alias));
+                featureBuilder.append(String.format("            input_data.%s,\n", validPythonField));
+                logBuilder.append(String.format("        f'    \"%s\": {{input_data.%s}},\\n'\n", alias, validPythonField));
+            }
+            pydanticFields = pydanticBuilder.toString();
+            featureArrayAssignment = featureBuilder.append("        ]])").toString();
+            inputDataLogging = logBuilder.append("        '    }'\n    )").toString();
 
+        } catch (Exception e) {
+            logger.warn("Could not parse predictionParametersJson as Map, trying as List. Error: {}", e.getMessage());
+            // Fallback: Try parsing as simple List<String>
+            try {
+                fieldNames = objectMapper.readValue(predictionParametersJson, new TypeReference<List<String>>() {});
+                StringBuilder pydanticBuilder = new StringBuilder();
+                StringBuilder featureBuilder = new StringBuilder("np.array([[\n");
+                StringBuilder logBuilder = new StringBuilder("{\n");
 
-         } catch (Exception e) {
-             logger.warn("Could not parse predictionParametersJson as Map, trying as List. Error: {}", e.getMessage());
-             // Fallback: Try parsing as simple List<String>
-             try {
-                 fieldNames = objectMapper.readValue(predictionParametersJson, new TypeReference<List<String>>() {});
-                 StringBuilder pydanticBuilder = new StringBuilder();
-                 StringBuilder featureBuilder = new StringBuilder("np.array([[\n");
-                 StringBuilder logBuilder = new StringBuilder("{\n");
+                for (String field : fieldNames) {
+                    String validPythonField = field.replaceAll("[^a-zA-Z0-9_]", "_");
+                    pydanticBuilder.append(String.format("    %s: float\n", validPythonField)); // Assume float, no alias
+                    featureBuilder.append(String.format("            input_data.%s,\n", validPythonField));
+                    logBuilder.append(String.format("        f'    \"%s\": {{input_data.%s}},\\n'\n", field, validPythonField));
+                }
+                pydanticFields = pydanticBuilder.toString();
+                featureArrayAssignment = featureBuilder.append("        ]])").toString();
+                inputDataLogging = logBuilder.append("        '    }'\n    )").toString();
 
-                 for (String field : fieldNames) {
-                     String validPythonField = field.replaceAll("[^a-zA-Z0-9_]", "_");
-                     pydanticBuilder.append(String.format("    %s: float\n", validPythonField)); // Assume float, no alias
-                     featureBuilder.append(String.format("            input_data.%s,\n", validPythonField));
-                     logBuilder.append(String.format("        f'    \"%s\": {{input_data.%s}},\\n'\n", field, validPythonField));
-                 }
-                 pydanticFields = pydanticBuilder.toString();
-                 featureArrayAssignment = featureBuilder.append("        ]])").toString();
-                  inputDataLogging = logBuilder.append("        '    }'\n    )").toString();
+            } catch (Exception e2) {
+                logger.error("Failed to parse predictionParametersJson as Map or List. Using default empty structure.", e2);
+                throw new BadRequestException("Invalid format for Prediction Parameters JSON. Expected JSON object (like {\"field\": \"type\"}) or list of strings (like [\"field1\", \"field2\"]).", e2);
+            }
+        }
 
-             } catch (Exception e2) {
-                 logger.error("Failed to parse predictionParametersJson as Map or List. Using default empty structure.", e2);
-                 throw new DeploymentException("Invalid format for Prediction Parameters JSON. Expected JSON object (like {\"field\": \"type\"}) or list of strings (like [\"field1\", \"field2\"]).", e2);
-             }
-         }
-
-
-        // Template for main.py
-        return """
+        // Template for main.py - this is Python code, so we need to escape it properly as a Java string
+        return String.format("""
 import os
 import sys
 import joblib
@@ -310,7 +309,7 @@ MODEL_PATH = os.path.join(os.path.dirname(__file__), MODEL_FILENAME)
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
+    format='%%%(asctime)s - %%%(levelname)s - %%%(name)s - %%%(message)s',
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
@@ -375,13 +374,13 @@ async def log_requests(request: Request, call_next):
 # --- API Endpoints ---
 @app.get("/", summary="Root endpoint", tags=["General"])
 async def root():
-    """ Basic endpoint to check if the API is running. """
+    \"\"\" Basic endpoint to check if the API is running. \"\"\"
     logger.info("Root endpoint '/' accessed.")
     return {"message": "Prediction API is running. Use POST /predict for predictions."}
 
 @app.get("/health", summary="Health Check", tags=["General"])
 async def health_check():
-    """ Returns the operational status of the API and model loading status. """
+    \"\"\" Returns the operational status of the API and model loading status. \"\"\"
     if startup_error:
         logger.error(f"Health check failed due to startup error: {startup_error}")
         raise HTTPException(status_code=503, detail=f"Service Unavailable: {startup_error}")
@@ -391,9 +390,9 @@ async def health_check():
 
 @app.post("/predict", response_model=PredictionOutput, summary="Make Prediction", tags=["Prediction"])
 async def predict(input_data: PredictionInput):
-    """
+    \"\"\"
     Receives input data matching the model's requirements and returns the prediction.
-    """
+    \"\"\"
     # Check if model loaded correctly during startup
     if model is None or startup_error:
         error_detail = startup_error or "Model is not available."
@@ -447,12 +446,6 @@ async def predict(input_data: PredictionInput):
 #     )
 
 # Note: Uvicorn runs this app using the CMD in the Dockerfile
-""".formatted(
-                        modelPathInContainer,      # %s for MODEL_PATH
-                        pydanticFields,            # %s for Pydantic fields in PredictionInput
-                        inputDataLogging,          # %s for dynamic logging f-string
-                        featureArrayAssignment     # %s for feature preparation np.array
-                ).stripIndent();
+""", modelPathInContainer, pydanticFields, inputDataLogging, featureArrayAssignment);
     }
-
-} // End of HuggingFaceService class
+}

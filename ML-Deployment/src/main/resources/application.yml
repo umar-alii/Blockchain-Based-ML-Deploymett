@@ -11,7 +11,13 @@ app:
   auth:
     tokenSecret: 1mzFhganWdRsTgoa3+5JIp+pZfu1TO77VJDWqleOwMWQJkb0lqdM7hLmyuxV4Cy5ooBmhqKnUAHdcJetmKwNMQ==
     tokenExpirationMsec: 864000000
+huggingface:
+  token: "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"
+  username: "Umar4114"
 
+temp:
+  file:
+    dir: "./temp-hf-deploys"
 logging:
   level:
     root: INFO

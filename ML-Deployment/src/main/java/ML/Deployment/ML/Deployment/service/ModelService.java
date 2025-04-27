@@ -1,6 +1,7 @@
 package ML.Deployment.ML.Deployment.service;
 
-import ML.Deployment.ML.Deployment.exception.DeploymentException;
+
+import ML.Deployment.ML.Deployment.exception.BadRequestException;
 import ML.Deployment.ML.Deployment.exception.FileUploadException;
 import ML.Deployment.ML.Deployment.model.Model;
 import ML.Deployment.ML.Deployment.repository.ModelRepository;
@@ -95,7 +96,7 @@ public class ModelService {
             logger.info("Model metadata saved to MongoDB with ID: {}", savedModel.getId());
             return savedModel;
 
-        } catch (DeploymentException | FileUploadException e) {
+        } catch (BadRequestException | FileUploadException e) {
              logger.error("Deployment failed for model '{}': {}", name, e.getMessage());
              throw e; // Re-throw specific exceptions
         } catch (Exception e) { // Catch unexpected errors
